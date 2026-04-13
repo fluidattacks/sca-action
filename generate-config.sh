@@ -51,7 +51,7 @@ run_scan() {
   docker run --rm \
     -v "${GITHUB_WORKSPACE}:/src" \
     -v "${CONFIG_FILE}:${CONFIG_FILE}:ro" \
-    "docker.io/fluidattacks/sca:latest" \
+    "ghcr.io/fluidattacks/sca:latest" \
     sca scan "${CONFIG_FILE}" || exit_code=$?
 
   if [[ ${exit_code} -eq 0 ]]; then
