@@ -42,12 +42,6 @@ jobs:
 
       - uses: fluidattacks/sca-action@1.0.0
         id: scan
-
-      - name: Upload results to GitHub Security tab
-        if: always()
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: ${{ steps.scan.outputs.sarif_file }}
 ```
 
 Commit both files, push, and the scan will run automatically.
