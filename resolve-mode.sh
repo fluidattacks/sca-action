@@ -8,28 +8,20 @@ if [[ ! -f ".sca.yaml" ]]; then
   exit 1
 fi
 
-# Explicit full override
-if [[ "${SCANNER_MODE}" == "full" ]]; then
-  out "mode=full"
-  exit 0
+# Diff mode is only valid on push and pull_request events
+if [[ "${SCANNER_MODE}" == "diff" ]]; then
+  if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+    out "mode=diff"
+    out "base_sha=${PR_BASE_SHA}"
+    exit 0
+  elif [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+    DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | awk '{print $NF}')
+    out "mode=diff"
+    out "base_sha=origin/${DEFAULT_BRANCH}"
+    exit 0
+  fi
+  # Other events (schedule, workflow_dispatch, etc.) fall through to full scan
 fi
 
-# Pull request: diff against PR base
-if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
-  out "mode=diff"
-  out "base_sha=${PR_BASE_SHA}"
-  exit 0
-fi
-
-DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | awk '{print $NF}')
-CURRENT_BRANCH="${GITHUB_REF#refs/heads/}"
-
-# Default branch: full scan
-if [[ "${CURRENT_BRANCH}" == "${DEFAULT_BRANCH}" ]]; then
-  out "mode=full"
-  exit 0
-fi
-
-# Any other branch: diff against default branch
-out "mode=diff"
-out "base_sha=origin/${DEFAULT_BRANCH}"
+# Default: full scan
+out "mode=full"

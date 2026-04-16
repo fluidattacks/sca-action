@@ -37,10 +37,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          # Required for differential scanning (default mode).
-          # Can be omitted if scanner_mode: full is set.
-          fetch-depth: 0
 
       - uses: fluidattacks/sca-action@1.0.0
         id: scan
@@ -50,25 +46,15 @@ Commit both files, push, and the scan will run automatically.
 
 ## How it works
 
-### Default branch detection
+### Scan modes
 
-The action automatically detects your repository's default branch. It works with any branch name — `main`, `master`, `trunk`, `develop`, or whatever your team uses.
+By default, the action always performs a **full scan** — it analyzes all dependencies in the repository on every run, regardless of the event or branch.
 
-### Scan types
+You can switch to a differential scan with `scanner_mode: diff` — see [Action inputs](#action-inputs).
 
-| Trigger | Scan type | What it analyzes |
-|---|---|---|
-| Push to default branch | Full scan | All dependencies in the repository |
-| Push to any other branch | Differential scan | Only changed files vs. default branch |
-| Pull request | Differential scan | Only changed files vs. PR base branch |
+### Why `fetch-depth: 0` is not needed by default
 
-You can force a full scan on every run with `scanner_mode: full` — see [Action inputs](#action-inputs).
-
-### Why `fetch-depth: 0`?
-
-The `actions/checkout` step uses `fetch-depth: 0` to download the full git history. This is necessary for the differential scan to compare your current changes against the default branch.
-
-If you set `scanner_mode: full`, the action skips all git comparisons entirely, so a default shallow checkout is sufficient — `fetch-depth: 0` is not needed.
+Full scan mode skips all git comparisons, so the default shallow checkout is sufficient. You only need `fetch-depth: 0` if you set `scanner_mode: diff`.
 
 ## Configuration reference
 
@@ -126,17 +112,23 @@ sca:
 
 | Input | Required | Default | Description |
 |---|---|---|---|
-| `scanner_mode` | No | _(auto)_ | Override the scan mode. `full` forces a full repository scan. If omitted, the mode is determined automatically based on the event and branch. |
+| `scanner_mode` | No | `full` | Scan mode. `full` scans the entire repository (default). `diff` scans only changed files versus the base branch or PR base. |
 
-### `scanner_mode: full`
+### `scanner_mode: diff`
 
-Forces a full repository scan regardless of the event. Useful for scheduled audits or when you want every run to cover the entire codebase.
+Scans only the files changed relative to the base branch (on pushes) or the PR base (on pull requests). Requires `fetch-depth: 0` in the checkout step so the action can compare git history.
+
+Diff mode is only active on `push` and `pull_request` events. For any other event (e.g. `schedule`, `workflow_dispatch`), the action automatically falls back to a full scan.
 
 ```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+
 - uses: fluidattacks/sca-action@1.0.0
   id: scan
   with:
-    scanner_mode: full
+    scanner_mode: diff
 ```
 
 ## Action outputs
@@ -154,7 +146,7 @@ Make sure the "Upload SARIF" step is included in your workflow and uses `if: alw
 
 ### The differential scan analyzes all files instead of just changes
 
-Verify that `fetch-depth: 0` is set in the `actions/checkout` step.
+Verify that `fetch-depth: 0` is set in the `actions/checkout` step and that `scanner_mode: diff` is configured.
 
 ### The pipeline fails unexpectedly
 
