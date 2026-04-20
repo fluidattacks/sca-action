@@ -38,9 +38,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: fluidattacks/sca-action@1.0.0
+      - uses: fluidattacks/sca-action@<version>
         id: scan
 ```
+
+Replace <version> with the latest release tag. Check the releases page for the current version and update whenever a new one is published.
 
 Commit both files, push, and the scan will run automatically.
 
@@ -55,6 +57,28 @@ You can switch to a differential scan with `scanner_mode: diff` — see [Action 
 ### Why `fetch-depth: 0` is not needed by default
 
 Full scan mode skips all git comparisons, so the default shallow checkout is sufficient. You only need `fetch-depth: 0` if you set `scanner_mode: diff`.
+
+## Viewing results
+
+After the workflow runs, results are written to the path you configured in `output.file_path` (e.g. `results.sarif`).
+
+### SARIF file
+
+The raw SARIF file is always available in your workspace. You can download it as an artifact, process it with other tools, or upload it to a third-party platform.
+
+### GitHub Security tab (optional)
+
+You can upload the SARIF file to GitHub's Security tab so findings appear as **Code scanning alerts** with inline PR annotations:
+
+```yaml
+- name: Upload results to GitHub Security tab
+  if: always()
+  uses: github/codeql-action/upload-sarif@v4
+  with:
+    sarif_file: ${{ steps.scan.outputs.sarif_file }}
+```
+
+> **Restrictions:** SARIF upload to the Security tab requires **GitHub Advanced Security**, which is available on all public repositories and on private repositories under a GitHub Advanced Security license. On private repositories without that license, the upload step will fail. See [GitHub's documentation](https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/uploading-a-sarif-file-to-github) for details.
 
 ## Configuration reference
 
