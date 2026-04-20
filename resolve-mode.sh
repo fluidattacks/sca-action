@@ -3,9 +3,13 @@ set -euo pipefail
 
 out() { echo "$1" >> "${GITHUB_OUTPUT}"; }
 
-if [[ ! -f ".sca.yaml" ]]; then
-  echo "::error::Config file .sca.yaml not found in repository root."
-  exit 1
+# Resolve config file: .fluidattacks.yaml > .sca.yaml > (built-in defaults)
+if [[ -f "${GITHUB_WORKSPACE}/.fluidattacks.yaml" ]]; then
+  out "config_file=${GITHUB_WORKSPACE}/.fluidattacks.yaml"
+elif [[ -f "${GITHUB_WORKSPACE}/.sca.yaml" ]]; then
+  out "config_file=${GITHUB_WORKSPACE}/.sca.yaml"
+else
+  out "config_file="
 fi
 
 # Diff mode is only valid on push and pull_request events

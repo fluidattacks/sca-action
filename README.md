@@ -8,7 +8,7 @@ Scans your project dependencies for known vulnerabilities automatically on every
 
 ### 1. Create the configuration file
 
-Add a file called `.sca.yaml` in the root of your repository:
+Add a file called `.fluidattacks.yaml` in the root of your repository:
 
 ```yaml
 language: EN
@@ -58,7 +58,13 @@ Full scan mode skips all git comparisons, so the default shallow checkout is suf
 
 ## Configuration reference
 
-All settings go in `.sca.yaml` at the root of your repository.
+The action looks for configuration in the following order:
+
+1. **`.fluidattacks.yaml`** — primary config file (recommended)
+2. **`.sca.yaml`** — legacy config file, used if `.fluidattacks.yaml` is not present
+3. **Built-in defaults** — if neither file exists, the action scans the entire repository (`sca.include: [.]`) and writes results to `.fluidattacks-sca-results.sarif`
+
+Place whichever file you use at the root of your repository.
 
 ### Minimal configuration
 
@@ -103,9 +109,9 @@ sca:
 |---|---|---|---|
 | `language` | No | `EN` | Language for descriptions (`EN` or `ES`) |
 | `strict` | No | `false` | Fail the pipeline if vulnerabilities are found |
-| `output.file_path` | Yes | — | Path for the output file |
-| `output.format` | Yes | — | Output format: `SARIF`, `CSV`, or `ALL` |
-| `sca.include` | Yes | — | List of paths to scan |
+| `output.file_path` | No | `.fluidattacks-sca-results.sarif` | Path for the output file |
+| `output.format` | No | `SARIF` | Output format: `SARIF`, `CSV`, or `ALL` |
+| `sca.include` | No | `[.]` | List of paths to scan |
 | `sca.exclude` | No | — | List of paths to exclude |
 
 ## Action inputs
