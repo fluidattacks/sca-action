@@ -124,7 +124,8 @@ sca:
 
 Scans only the files changed relative to the base branch (on pushes) or the PR base (on pull requests). Requires `fetch-depth: 0` in the checkout step so the action can compare git history.
 
-Diff mode is only active on `push` and `pull_request` events. For any other event (e.g. `schedule`, `workflow_dispatch`), the action automatically falls back to a full scan.
+Diff mode is only active on `push` and `pull_request` events, in which there is a baseline to compare against.
+For any other event (e.g. `schedule`, `workflow_dispatch`), the action automatically falls back to a full scan.
 
 ```yaml
 - uses: actions/checkout@v4
