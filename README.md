@@ -6,22 +6,7 @@ Scans your project dependencies for known vulnerabilities automatically on every
 
 ## Quick Start (2 minutes)
 
-### 1. Create the configuration file
-
-Add a file called `.fluidattacks.yaml` in the root of your repository:
-
-```yaml
-language: EN
-strict: false
-output:
-  file_path: results.sarif
-  format: SARIF
-sca:
-  include:
-    - .
-```
-
-### 2. Create the GitHub Actions workflow
+### 1. Create the GitHub Actions workflow
 
 Add the file `.github/workflows/sca.yml` to your repository:
 
@@ -42,9 +27,24 @@ jobs:
         id: scan
 ```
 
-Replace <version> with the latest release tag. Check the releases page for the current version and update whenever a new one is published.
+Replace `<version>` with the latest release tag. Check the releases page for the current version and update whenever a new one is published.
 
-Commit both files, push, and the scan will run automatically.
+Without a configuration file, the action scans the entire repository and writes results to `.fluidattacks-sca-results.sarif`.
+
+### 2. (Optional) Add a configuration file
+
+To customize scan paths, output format, or strict mode, create a YAML file anywhere in your repository and pass its path to the action:
+
+```yaml
+- uses: fluidattacks/sca-action@<version>
+  id: scan
+  with:
+    scan_config_path: .github/sca-config.yaml
+```
+
+See [Configuration reference](#configuration-reference) for the full list of options.
+
+Commit and push. The scan will run automatically on the next push or pull request.
 
 ## How it works
 
@@ -60,7 +60,7 @@ Full scan mode skips all git comparisons, so the default shallow checkout is suf
 
 ## Viewing results
 
-After the workflow runs, results are written to the path you configured in `output.file_path` (e.g. `results.sarif`).
+After the workflow runs, results are written to the path configured in `output.file_path` (e.g. `results.sarif`), or to `.fluidattacks-sca-results.sarif` when no configuration file is provided.
 
 ### SARIF file
 
@@ -82,13 +82,7 @@ You can upload the SARIF file to GitHub's Security tab so findings appear as **C
 
 ## Configuration reference
 
-The action looks for configuration in the following order:
-
-1. **`.fluidattacks.yaml`** — primary config file (recommended)
-2. **`.sca.yaml`** — legacy config file, used if `.fluidattacks.yaml` is not present
-3. **Built-in defaults** — if neither file exists, the action scans the entire repository (`sca.include: [.]`) and writes results to `.fluidattacks-sca-results.sarif`
-
-Place whichever file you use at the root of your repository.
+When `scan_config_path` is provided, the action uses that file exclusively. When omitted, the action runs with built-in defaults: scans the entire repository (`sca.include: [.]`) and writes results to `.fluidattacks-sca-results.sarif`.
 
 ### Minimal configuration
 
@@ -142,21 +136,34 @@ sca:
 
 | Input | Required | Default | Description |
 |---|---|---|---|
+| `scan_config_path` | No | — | Path to the YAML configuration file, relative to the repository root. When omitted, the action runs with built-in defaults. The job fails if the file does not exist at the given path. |
 | `scanner_mode` | No | `full` | Scan mode. `full` scans the entire repository (default). `diff` scans only changed files versus the base branch or PR base. |
+
+### `scan_config_path`
+
+Point the action at your configuration file:
+
+```yaml
+- uses: fluidattacks/sca-action@<version>
+  id: scan
+  with:
+    scan_config_path: .github/sca-config.yaml
+```
+
+The path is relative to the repository root. The job fails immediately if the file does not exist.
 
 ### `scanner_mode: diff`
 
 Scans only the files changed relative to the base branch (on pushes) or the PR base (on pull requests). Requires `fetch-depth: 0` in the checkout step so the action can compare git history.
 
-Diff mode is only active on `push` and `pull_request` events, in which there is a baseline to compare against.
-For any other event (e.g. `schedule`, `workflow_dispatch`), the action automatically falls back to a full scan.
+Diff mode is only active on `push` and `pull_request` events. For any other event (e.g. `schedule`, `workflow_dispatch`), the action automatically falls back to a full scan.
 
 ```yaml
 - uses: actions/checkout@v4
   with:
     fetch-depth: 0
 
-- uses: fluidattacks/sca-action@1.0.0
+- uses: fluidattacks/sca-action@<version>
   id: scan
   with:
     scanner_mode: diff
@@ -181,7 +188,11 @@ Verify that `fetch-depth: 0` is set in the `actions/checkout` step and that `sca
 
 ### The pipeline fails unexpectedly
 
-If `strict: true` is set, the pipeline will fail whenever vulnerabilities are found. Set `strict: false` to report without failing.
+If `strict: true` is set in your configuration file, the pipeline will fail whenever vulnerabilities are found. Set `strict: false` to report without failing.
+
+### The job fails with "not found in repository"
+
+The path provided to `scan_config_path` does not exist in the repository. Verify the path is correct and relative to the repository root.
 
 ## More information
 
