@@ -56,6 +56,7 @@ runs:
         SCAN_CONFIG_PATH: ${{ inputs.scan_config_path }}
         SCANNER_MODE: ${{ inputs.scanner_mode }}
         PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        GITHUB_BEFORE: ${{ github.event.before }}
 
     - name: Get changed files
       if: steps.resolve.outputs.mode == 'diff'
@@ -63,7 +64,7 @@ runs:
       uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96
       with:
         base_sha: ${{ steps.resolve.outputs.base_sha }}
-        separator: ' '
+        separator: "\n"
 
     - name: Run scan
       id: scan
