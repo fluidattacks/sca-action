@@ -33,7 +33,7 @@ Without a configuration file, the action scans the entire repository and writes 
 
 ### 2. (Optional) Add a configuration file
 
-To customize scan paths, output format, or strict mode, create a YAML file anywhere in your repository and pass its path to the action:
+To customize scan paths or output format, create a YAML file anywhere in your repository and pass its path to the action:
 
 ```yaml
 - uses: fluidattacks/sca-action@<version>
@@ -45,6 +45,12 @@ To customize scan paths, output format, or strict mode, create a YAML file anywh
 See [Configuration reference](#configuration-reference) for the full list of options.
 
 Commit and push. The scan will run automatically on the next push or pull request.
+
+## Prerequisites
+
+- A GitHub repository (public or private).
+- GitHub Actions enabled on the repository.
+- No account, token, or API key is needed to run the scan. The action is 100% open source. Authentication is optional; see [Authentication](#authentication).
 
 ## Authentication
 
@@ -142,6 +148,10 @@ language: EN
 # If true, the pipeline fails when vulnerabilities are found
 strict: false
 
+# Optional: fail only for vulnerabilities at or above this severity
+# (low, medium, high or critical)
+strictness_threshold: high
+
 output:
   # Path where the results file will be written
   file_path: results.sarif
@@ -162,7 +172,8 @@ sca:
 | Option | Required | Default | Description |
 |---|---|---|---|
 | `language` | No | `EN` | Language for descriptions (`EN` or `ES`) |
-| `strict` | No | `false` | Fail the pipeline if vulnerabilities are found |
+| `strict` | No | `false` | Fail the pipeline if vulnerabilities are found. |
+| `strictness_threshold` | No | — | Minimum severity that fails the pipeline: `low`, `medium`, `high` or `critical`. |
 | `output.file_path` | No | `.fluidattacks-sca-results.sarif` | Path for the output file |
 | `output.format` | No | `SARIF` | Output format: `SARIF`, `CSV`, or `ALL` |
 | `sca.include` | No | `[.]` | List of paths to scan |
@@ -174,6 +185,10 @@ sca:
 |---|---|---|---|
 | `scan_config_path` | No | — | Path to the YAML configuration file, relative to the repository root. When omitted, the action runs with built-in defaults. The job fails if the file does not exist at the given path. |
 | `scanner_mode` | No | `full` | Scan mode. `full` scans the entire repository (default). `diff` scans only changed files versus the base branch or PR base. |
+| `strict` | No | — | `true` or `false`. Breaks the build when vulnerabilities are found. Overrides `strict` in the configuration file. When omitted, the configuration file decides. See [Breaking the build](#breaking-the-build). |
+| `strictness_threshold` | No | — | `low`, `medium`, `high` or `critical`. Breaks the build only for vulnerabilities at or above this severity. Overrides `strictness_threshold` in the configuration file. When omitted, the configuration file decides. See [Breaking the build](#breaking-the-build). |
+| `group` | No | — | Fluid Attacks group to authenticate as. Required only for OpenID Connect. See [Authentication](#authentication). |
+| `api_token` | No | — | Group token, used when OpenID Connect is not an option. Takes precedence over OIDC. See [Authentication](#authentication). |
 
 ### `scan_config_path`
 
@@ -205,10 +220,42 @@ Diff mode is only active on `push` and `pull_request` events. For any other even
     scanner_mode: diff
 ```
 
+### Breaking the build
+
+By default the action reports vulnerabilities without failing the job. Two inputs make it fail, and you only need one of them.
+
+Fail on any vulnerability:
+
+```yaml
+- uses: fluidattacks/sca-action@<version>
+  id: scan
+  with:
+    strict: true
+```
+
+Fail only on vulnerabilities at or above a severity (`low`, `medium`, `high` or `critical`):
+
+```yaml
+- uses: fluidattacks/sca-action@<version>
+  id: scan
+  with:
+    strictness_threshold: high
+```
+
+`strictness_threshold` breaks the build by itself, with or without `strict`. The scan always reports every vulnerability and fails only on those that reach the threshold.
+
+How the decision is made:
+
+- **Unauthenticated runs:** `strict: true` breaks the build on any vulnerability, and `strictness_threshold` on those at or above that severity.
+- **Authenticated runs:** the minimum CVSS score defined in your group's platform policy also applies. When both a policy and `strictness_threshold` are present, the stricter of the two applies, so the workflow can only make the gate stricter than the platform, never looser.
+- **Precedence:** the inputs override `strict` and `strictness_threshold` in the configuration file, including `strict: false` over a file that says `true`. When an input is omitted, the file decides.
+- **Invalid values:** a value that is not `true`/`false` (for `strict`) or not one of `low`, `medium`, `high`, `critical` (for `strictness_threshold`, lowercase only) is ignored with a warning, so the configuration file decides.
+
 ## Action outputs
 
 | Output | Description |
 |---|---|
+| `skip` | `true` when the scan was skipped because a `diff` run found no changed files, `false` otherwise |
 | `sarif_file` | Path to the SARIF results file (when format is `SARIF` or `ALL`) |
 | `vulnerabilities_found` | `true` if any vulnerabilities were detected, `false` otherwise |
 
@@ -216,7 +263,7 @@ Diff mode is only active on `push` and `pull_request` events. For any other even
 
 ### The scan runs but no results appear in the Security tab
 
-Make sure the "Upload SARIF" step is included in your workflow and uses `if: always()`.
+Make sure the "Upload SARIF" step is included in your workflow and uses `if: always()` so it runs even if the scan breaks the build.
 
 ### The differential scan analyzes all files instead of just changes
 
@@ -224,7 +271,7 @@ Verify that `fetch-depth: 0` is set in the `actions/checkout` step and that `sca
 
 ### The pipeline fails unexpectedly
 
-If `strict: true` is set in your configuration file, the pipeline will fail whenever vulnerabilities are found. Set `strict: false` to report without failing.
+If `strict: true` or a `strictness_threshold` is set (as an action input or in your configuration file), the pipeline fails when the scan finds vulnerabilities, or ones at or above the threshold. This is intentional. Remove them, or raise `strictness_threshold`, if you want the scan to report vulnerabilities without failing the pipeline. The action input wins over the configuration file.
 
 ### The job fails with "not found in repository"
 
